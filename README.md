@@ -1,17 +1,17 @@
-### - Deixar código maleável para vários modelos, não só OpenAI; Anthropic?
+#### - Deixar código maleável para vários modelos, não só OpenAI; Anthropic?
 
-### - Não só LLMs models mas ChatLLMs também; - OK
+#### - Não só LLMs models mas ChatLLMs também; - OK
 
-### - Incluir e organizar data; - OK
+#### - Incluir e organizar data; - OK
 
-### - Pensar na configuração do ambiente com conda; - OK
+#### - Pensar na configuração do ambiente com conda; - OK
 
-### - Pensar nos argumentos;
+#### - Configurar git; - OK
 
-### - Salvar resultados e extrair as respostas corretas com GPT-3.5.
+#### - Configurar e organizar keys; - OK
 
-## - Configurar git.
+#### - Desenvolver novos prompts?
 
-## - Configurar e organizar keys.
+#### - Como vai funcionar o loop?
 
-## - Como vai funcionar o loop?
+#### - Pensar nos argumentos;

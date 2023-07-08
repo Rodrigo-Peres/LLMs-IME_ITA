@@ -6,42 +6,14 @@ import openai
 import pandas as pd
 import time
 
-# from langchain.chat_models import ChatAnthropic, ChatOpenAI  # , ChatVertexAI
-# from langchain.llms import OpenAI  # , VertexAI
-# from langchain.output_parsers import StructuredOutputParser, ResponseSchema
-# from langchain.prompts import (
-#    PromptTemplate,
-#    ChatPromptTemplate,
-#    HumanMessagePromptTemplate,
-# )
 from utils import get_answer, extract_right_option
 
 
-with open("./GPT_SECRET_KEY.json") as f:
+with open("./credentials/GPT_SECRET_KEY.json") as f:
     open_ai = json.load(f)
 
 openai.api_key = open_ai["API_KEY"]
 
-
-# model = {
-#    "text-davinci-003": OpenAI(
-#        model_name="text-davinci-003", temperature=0, openai_api_key=openai.api_key
-#    ),
-#    "gpt-3.5-turbo": ChatOpenAI(
-#        model_name="gpt-3.5-turbo-0301", temperature=0, openai_api_key=openai.api_key
-#    ),
-#    "gpt-4": ChatOpenAI(
-#        model_name="gpt-4-0314", temperature=0, openai_api_key=openai.api_key
-#    ),
-#    # "text-bison": VertexAI(model_name="text-bison@001", temperature=0),
-#    # "chat-bison": ChatVertexAI(model_name="chat-bison@001", temperature=0),
-#    # "claude-instant-1": ChatAnthropic(
-#    #    model_name="claude-instant-1-100k", temperature=0, openai_api_key=openai.api_key
-#    # ),
-#    # "claude-1": ChatAnthropic(
-#    #    model_name="claude-1-100k", temperature=0, openai_api_key=openai.api_key
-#    # ),
-# }
 
 models = {
     "davinci": "text-davinci-003",

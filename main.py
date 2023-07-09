@@ -12,7 +12,6 @@ from models import model_names
 QUESTIONS_FILE_PATH = "data/questions_dataset.xlsx"
 ANSWERS_FILE_PATH = "data/results/answers.xlsx"
 
-
 with open("./credentials/GPT_SECRET_KEY.json") as f:
     open_ai = json.load(f)
 
@@ -45,10 +44,11 @@ def main():
         question_id = df_answers[
             (df_answers["model_name"] == model)
             & (df_answers["prompt_technique"] == prompt_technique)
-        ].id.max()
+        ]["id"].max()
         question_id = 0 if math.isnan(question_id) else question_id
         df_iter = df_questions[df_questions["id"] > question_id]
-    except:
+
+    except FileNotFoundError:
         df_answers = pd.DataFrame(
             columns=[
                 "model_name",
@@ -66,8 +66,10 @@ def main():
         print(f"\nQuestion ID {row['id']}")
 
         complete_answer = get_answer(prompt_technique, model, row=row, temperature=temp)
+        print(f"Complete answer: {complete_answer}\n")
         time.sleep(1)
         answer = extract_right_option(complete_answer)
+        print(f"Extracted answer: {answer}\n")
 
         df_temp = pd.DataFrame(
             {
@@ -80,9 +82,6 @@ def main():
                 "answer": [answer],
             }
         )
-
-        print(f"Complete answer: {complete_answer}")
-        print(f"Extracted answer: {answer}\n")
 
         df_answers = pd.concat([df_answers, df_temp], ignore_index=True)
         time.sleep(1)

@@ -21,17 +21,34 @@ def tokens_num_allowed(string, encoding_name):
     encoding = tiktoken.encoding_for_model(encoding_name)
     num_tokens = len(encoding.encode(string))
     tokens_num_allowed = MAX_TOKENS - num_tokens
-
     return tokens_num_allowed
 
 
 def prep_dataset(dataframe_path):
+    if hasattr(prep_dataset, "cached_df"):
+        return prep_dataset.cached_df
     df = pd.read_excel(dataframe_path)
     df["extra_info"].replace(np.nan, None, inplace=True)
     df = df[df["status"] == "OK"]
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
-
+    prep_dataset.cached_df = df
     return df
+
+
+def handle_errors(retries, max_retries):
+    if retries == max_retries - 1:
+        raise Exception("Max retries exceeded.")
+    delay = INITIAL_DELAY * (BACKOFF_FACTOR ** retries)
+    delay += random.randint(0, delay)
+    time.sleep(delay)
+
+
+def get_prompt(row):
+    prompt = f"Questão: {row['question']}\n\n"
+    if row["extra_info"]:
+        prompt += f"Considere essas informações adicionais:\n\n{row['extra_info']}\n\n"
+    prompt += f"Alternativas:\n\n{row['alternatives']}\n\nResposta: "
+    return prompt
 
 
 def get_answer(prompt_technique, model, row, temperature=0):
@@ -42,31 +59,21 @@ def get_answer(prompt_technique, model, row, temperature=0):
         print(f"Retries num {retries}")
 
         try:
-
             if prompt_technique == "zero_shot":
-                if row["extra_info"] is not None:
-                    extra_info_prompt = f"Considere essas informações adicionais:\n\n{row['extra_info']}"
-                    prompt = f"Questão: {row['question']}\n\n{extra_info_prompt}\n\nAlternativas:\n\n{row['alternatives']}\n\nResposta: "
-                else:
-                    prompt = f"Questão: {row['question']}\n\nAlternativas:\n\n{row['alternatives']}\n\nResposta: "
+                prompt = get_prompt(row)
 
             if prompt_technique == "zero_shot_chain_of_thought":
                 zero_shot_cot_prompt = (
-                    "Resposta: Vamos pensar passo a passo para resolver a questão."
+                    "Vamos pensar passo a passo para resolver a questão."
                 )
-                if row["extra_info"] is not None:
-                    extra_info_prompt = f"Considere essas informações adicionais:\n\n{row['extra_info']}"
-                    prompt = f"Questão: {row['question']}\n\n{extra_info_prompt}\n\nAlternativas:\n\n{row['alternatives']}\n\n{zero_shot_cot_prompt}"
-                else:
-                    prompt = f"Questão: {row['question']}\n\nAlternativas:\n\n{row['alternatives']}\n\n{zero_shot_cot_prompt}"
+                prompt = get_prompt(row) + zero_shot_cot_prompt
+
+            if prompt_technique == "plan_and_solve":
+                plan_and_solve_prompt = "Vamos primeiro entender o problema, extrair variáveis relevantes, seus números correspondentes e fazer um plano. Então, vamos executar o plano, calcular as variáveis intermediárias (atenção ao cálculo numérico correto e ao bom senso), resolver o problema passo a passo e mostrar a resposta."
+                prompt = get_prompt(row) + plan_and_solve_prompt
 
             if prompt_technique in ["few_shot", "chain_of_thought"]:
-                if row["extra_info"] is not None:
-                    extra_info_prompt = f"Considere essas informações adicionais:\n\n{row['extra_info']}"
-                    prompt = f"Questão: {row['question']}\n\n{extra_info_prompt}\n\nAlternativas:\n\n{row['alternatives']}\n\nResposta: "
-                else:
-                    prompt = f"Questão: {row['question']}\n\nAlternativas:\n\n{row['alternatives']}\n\nResposta: "
-
+                prompt = get_prompt(row)
                 df_examples = df_questions[
                     (df_questions["exam"] == row["exam"])
                     & (df_questions["year"] != row["year"])
@@ -76,26 +83,14 @@ def get_answer(prompt_technique, model, row, temperature=0):
                 prompt_list = []
 
                 for _, row in df_examples.iterrows():
-                    if row["extra_info"] is not None:
-                        extra_info = f"Considere essas informações adicionais:\n\n{row['extra_info']}"
-                        new_prompt = f"Questão: {row['question']}\n\n{extra_info}\n\nAlternativas:\n\n{row['alternatives']}\n\nResposta: {row[prompt_technique]}\n"
-                    else:
-                        new_prompt = f"Questão: {row['question']}\n\nAlternativas:\n\n{row['alternatives']}\n\nResposta: {row[prompt_technique]}\n"
-
+                    new_prompt = get_prompt(row) + row[prompt_technique] + "\n"
                     prompt_list.append(new_prompt)
 
                 prompt = "\n".join(prompt_list + [prompt])
 
-            if prompt_technique == "plan_and_solve":
-                plan_and_solve_prompt = "Resposta: Vamos primeiro entender o problema, extrair variáveis relevantes, seus números correspondentes e fazer um plano. Então, vamos executar o plano, calcular as variáveis intermediárias (atenção ao cálculo numérico correto e ao bom senso), resolver o problema passo a passo e mostrar a resposta."
-                if row["extra_info"] is not None:
-                    extra_info_prompt = f"Considere essas informações adicionais:\n\n{row['extra_info']}"
-                    prompt = f"Questão: {row['question']}\n\n{extra_info_prompt}\n\nAlternativas:\n\n{row['alternatives']}\n\n{plan_and_solve_prompt}"
-                else:
-                    prompt = f"Questão: {row['question']}\n\nAlternativas:\n\n{row['alternatives']}\n\n{plan_and_solve_prompt}"
-
             print(prompt)
             tokens_allowed = tokens_num_allowed(prompt, model)
+            print(f"Tokens left: {tokens_allowed}")
 
             if model == "text-davinci-003":
                 answer = openai.Completion.create(
@@ -137,12 +132,7 @@ def get_answer(prompt_technique, model, row, temperature=0):
                 return answer.text
 
         except Exception as e:
-            if retries == MAX_RETRIES - 1:
-                raise e
-
-            delay = INITIAL_DELAY * (BACKOFF_FACTOR ** retries)
-            delay += random.randint(0, delay)
-            time.sleep(delay)
+            handle_errors(retries, MAX_RETRIES)
             retries += 1
 
 
@@ -166,14 +156,8 @@ def extract_right_option(answer):
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0,
             )
-
             return answer.choices[0].message["content"].strip()
 
         except Exception as e:
-            if retries == MAX_RETRIES - 1:
-                raise e
-
-            delay = INITIAL_DELAY * (BACKOFF_FACTOR ** retries)
-            delay += random.randint(0, delay)
-            time.sleep(delay)
+            handle_errors(retries, MAX_RETRIES)
             retries += 1

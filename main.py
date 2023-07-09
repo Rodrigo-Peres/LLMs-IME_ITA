@@ -1,12 +1,16 @@
 import argparse
 import json
 import math
-import numpy as np
 import openai
 import pandas as pd
 import time
 
-from utils import get_answer, extract_right_option
+from utils import extract_right_option, get_answer, prep_dataset
+from models import model_names
+
+
+QUESTIONS_FILE_PATH = "data/questions_dataset.xlsx"
+ANSWERS_FILE_PATH = "data/results/answers.xlsx"
 
 
 with open("./credentials/GPT_SECRET_KEY.json") as f:
@@ -15,80 +19,75 @@ with open("./credentials/GPT_SECRET_KEY.json") as f:
 openai.api_key = open_ai["API_KEY"]
 
 
-models = {
-    "davinci": "text-davinci-003",
-    "gpt-3.5": "gpt-3.5-turbo-0301",
-    "gpt-4": "gpt-4-0314",
-    "text-bison": "text-bison@001",
-    "chat-bison": "chat-bison@001",
-    "claude-instant": "claude-instant-1-100k",
-    "claude-1": "claude-1-100k",
-}
-
-
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompt_technique", type=str, required=True)
     parser.add_argument("--model", type=str, required=True)
-    # parser.add_argument("--temperature", type=float, default=None)
-    # parser.add_argument("--output_path", type=str, default=None)
+    parser.add_argument("--temperature", type=float, default=0, required=False)
 
     return parser.parse_args()
 
 
 def main():
     args = parse_arguments()
-    print("*****************************")
+    print("*********************")
     print(args)
-    print("*****************************")
+    print("*********************")
 
     prompt_technique = args.prompt_technique
-    model = models[args.model]
+    model = model_names[args.model]
+    temp = args.temperature
 
-    df = pd.read_excel(r"data/questions_dataset.xlsx", sheet_name="Questions")
-    df["extra_info"].replace(np.nan, None, inplace=True)
-    print(df.shape)
-    df_ok = df[df["status"] == "OK"]
-    print(df_ok.shape)
-    print(df_ok.head())
-    df_ok = df_ok.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+    df_questions = prep_dataset(QUESTIONS_FILE_PATH)
 
     try:
-        question_id = df_respostas[df_respostas["model_name"] == model].id.max()
+        df_answers = pd.read_excel(ANSWERS_FILE_PATH)
+        question_id = df_answers[
+            (df_answers["model_name"] == model)
+            & (df_answers["prompt_technique"] == prompt_technique)
+        ].id.max()
         question_id = 0 if math.isnan(question_id) else question_id
-        df_iter = df_ok[df_ok["id"] > question_id]
+        df_iter = df_questions[df_questions["id"] > question_id]
     except:
-        df_respostas = pd.DataFrame(
-            columns=["id", "question", "alternatives", "long_answer", "answer"]
+        df_answers = pd.DataFrame(
+            columns=[
+                "model_name",
+                "prompt_technique",
+                "id",
+                "question",
+                "alternatives",
+                "complete_answer",
+                "answer",
+            ]
         )
-        df_iter = df_ok.copy()
+        df_iter = df_questions.copy()
 
     for _, row in df_iter.iterrows():
         print(f"\nQuestion ID {row['id']}")
 
-        long_answer = get_answer(prompt_technique, model, row=row)
+        complete_answer = get_answer(prompt_technique, model, row=row, temperature=temp)
         time.sleep(1)
-        # answer = extract_right_option(long_answer)
-        answer = long_answer
+        answer = extract_right_option(complete_answer)
 
         df_temp = pd.DataFrame(
             {
                 "model_name": [model],
+                "prompt_technique": [prompt_technique],
                 "id": row["id"],
                 "question": row["question"],
                 "alternatives": row["alternatives"],
-                "long_answer": [long_answer],
+                "complete_answer": [complete_answer],
                 "answer": [answer],
             }
         )
 
-        print(f"Retorno: {long_answer}")
-        print(f"Resposta final extraída: {answer}\n")
+        print(f"Complete answer: {complete_answer}")
+        print(f"Extracted answer: {answer}\n")
 
-        df_respostas = pd.concat([df_respostas, df_temp], ignore_index=True)
+        df_answers = pd.concat([df_answers, df_temp], ignore_index=True)
         time.sleep(1)
 
-    # df_respostas.to_excel(rf"data/results/respostas_{model}.xlsx", index=False)
+    df_answers.to_excel(ANSWERS_FILE_PATH, index=False)
 
 
 if __name__ == "__main__":

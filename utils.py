@@ -103,7 +103,7 @@ def get_answer(prompt_technique, model, row, temperature=0):
                 )
                 return answer.choices[0].text.strip()
 
-            if model in ["gpt-3.5-turbo-0301", "gpt-4-0314"]:
+            if model in ["gpt-3.5-turbo-0613", "gpt-4-0613"]:
                 answer = openai.ChatCompletion.create(
                     model=model,
                     messages=[
@@ -152,7 +152,7 @@ def extract_right_option(answer):
             Texto: {answer}\n
             """
             answer = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo-0301",
+                model="gpt-3.5-turbo-0613",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0,
             )

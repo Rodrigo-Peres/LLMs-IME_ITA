@@ -1,7 +1,5 @@
 import argparse
-import json
 import math
-import openai
 import pandas as pd
 import time
 
@@ -12,16 +10,11 @@ from models import model_names
 QUESTIONS_FILE_PATH = "data/questions_dataset.xlsx"
 ANSWERS_FILE_PATH = "data/results/answers.xlsx"
 
-with open("./credentials/GPT_SECRET_KEY.json") as f:
-    open_ai = json.load(f)
-
-openai.api_key = open_ai["API_KEY"]
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--prompt_technique", type=str, required=True)
     parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--prompt_technique", type=str, required=True)
     parser.add_argument("--temperature", type=float, default=0, required=False)
 
     return parser.parse_args()

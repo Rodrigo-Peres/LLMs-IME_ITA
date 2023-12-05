@@ -13,7 +13,7 @@ from vertexai.preview.language_models import (
 )
 
 
-QUESTIONS_FILE_PATH = "data/questions_dataset.xlsx"
+QUESTIONS_FILE_PATH = "data/IME_and_ITA_questions_dataset.xlsx"
 
 MAX_RETRIES = 10
 INITIAL_DELAY = 1

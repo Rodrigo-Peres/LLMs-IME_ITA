@@ -7,7 +7,7 @@ from utils import extract_right_option, get_answer, prep_dataset
 from models import model_names
 
 
-QUESTIONS_FILE_PATH = "data/questions_dataset.xlsx"
+QUESTIONS_FILE_PATH = "data/IME_and_ITA_questions_dataset.xlsx"
 ANSWERS_FILE_PATH = "data/results/answers.xlsx"
 
 
